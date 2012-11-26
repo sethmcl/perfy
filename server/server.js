@@ -56,24 +56,39 @@ Server.prototype.initEnvironment = function(config) {
 Server.prototype.initRoutes = function() {
   var app  = this.app,
       port = this.port,
-      homeFolder = this.homeFolder;
+      homeFolder = this.homeFolder,
+      fileCache = {};
 
-  
   /** Index **/
   app.get('/', function(request, response) {
     response.render('index', { hostname: hostname, port: port });
+  });
+
+  /** Very Simple Include **/
+  app.get('/one_function', function(request, response) {
+    response.render('one_function', { hostname: hostname, port: port });
   });
 
   app.get('/sample_js/:file', function( request, response ) {
     var file = request.params.file,
         fsPath = path.resolve(homeFolder, '..', 'sample_js', file),
         data;
-    fs.readFile( fsPath, function(err, result) {
-      data = result.toString();
-      data = transformer.instrument(data, request.url);
+
+    function respond(data) {
       response.setHeader('Content-Type', 'text/javascript');
       response.send(data);
-    });
+    }
+
+    if(!fileCache[file]) {
+      fs.readFile( fsPath, function(err, result) {
+        data = result.toString();
+        data = transformer.instrument(data, request.url);
+        fileCache[file] = data;
+        respond(data);
+      });
+    } else {
+      respond(fileCache[file]);
+    }
   });
 }
 
